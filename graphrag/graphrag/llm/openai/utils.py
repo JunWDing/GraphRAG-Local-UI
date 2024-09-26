@@ -9,6 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 import tiktoken
+from PIL.ImageFile import ERRORS
 from openai import (
     APIConnectionError,
     InternalServerError,
@@ -90,7 +91,9 @@ def get_completion_llm_args(
 def try_parse_json_object(input: str) -> dict:
     """Generate JSON-string output using best-attempt prompting & parsing techniques."""
     try:
-        result = json.loads(input)
+        clean_json = clean_up_json(input)
+        log.log(1, "clean json: %s", clean_json)
+        result = json.loads(clean_json)
     except json.JSONDecodeError:
         log.exception("error loading json, json=%s", input)
         raise
@@ -98,6 +101,28 @@ def try_parse_json_object(input: str) -> dict:
         if not isinstance(result, dict):
             raise TypeError
         return result
+
+def clean_up_json(json_str: str) -> str:
+    """Clean up json string."""
+    json_str = (
+        json_str.replace("\\n", "")
+        .replace("\n", "")
+        .replace("\r", "")
+        .replace('"[{', "[{")
+        .replace('}]"', "}]")
+        .replace("\\", "")
+        # Refer: graphrag\llm\openai\_json.py,graphrag\index\utils\json.py
+        .replace("{{", "{")
+        .replace("}}", "}")
+        .strip()
+    )
+
+    # Remove JSON Markdown Frame
+    if json_str.startswith("```"):
+        json_str = json_str[len("```"):]
+    if json_str.endswith("```"):
+        json_str = json_str[: len(json_str) - len("```")]
+    return json_str
 
 
 def get_sleep_time_from_error(e: Any) -> float:

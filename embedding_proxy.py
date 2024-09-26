@@ -17,11 +17,11 @@ class EmbeddingResponse(BaseModel):
     object: str
     data: List[dict]
     model: str
-    usage: dict
+    # usage: dict
 
-@app.post("/v1/embeddings")
+@app.post("/embeddings")
 async def create_embedding(request: EmbeddingRequest):
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=None) as client:
         if isinstance(request.input, str):
             request.input = [request.input]
 
@@ -47,7 +47,6 @@ async def create_embedding(request: EmbeddingRequest):
             object="list",
             data=embeddings,
             model=request.model,
-            
         )
 
 if __name__ == "__main__":
